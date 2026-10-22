@@ -1,10 +1,24 @@
 // Шаг 1: один столик, один заказ, монеты, сохранение в localStorage
-// Версия 2: разметка под телефон (с учётом панели браузера), подписи, всплывающее «+10»
+// Версия 3: раскладка по долям экрана (без наложений), скруглённые элементы, пузырь заказа
 
 const SAVE_KEY = 'cafe-save';
 const ORDER_MIN_DELAY = 5000;
 const ORDER_MAX_DELAY = 10000;
 const ORDER_REWARD = 10;
+
+const COLORS = {
+  wall: 0x2b241e,
+  floor: 0x3a2e25,
+  coin: '#ffd76a',
+  client: 0x4a7fb5,
+  clientDark: 0x2d4f73,
+  table: 0x8b5a2b,
+  tableDark: 0x5a3617,
+  bubble: 0xfff6e5,
+  text: '#f3e3c8',
+  hint: '#bfb3a3',
+  reward: '#7dff8a'
+};
 
 function loadCoins() {
   try {
@@ -32,31 +46,33 @@ class CafeScene extends Phaser.Scene {
     this.coins = loadCoins();
     this.hasOrder = false;
 
+    this.bg = this.add.graphics();
     this.coinText = this.add.text(0, 0, '', {
-      fontSize: '36px', color: '#ffd76a', fontFamily: 'sans-serif'
+      fontSize: '34px', color: COLORS.coin, fontFamily: 'sans-serif', fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.clientBox = this.add.rectangle(0, 0, 180, 180, 0x4a7fb5)
-      .setStrokeStyle(4, 0x2d4f73);
+    this.client = this.add.graphics();
     this.clientLabel = this.add.text(0, 0, 'Клиент', {
-      fontSize: '22px', color: '#dfe9f5', fontFamily: 'sans-serif'
-    }).setOrigin(0.5);
-    this.orderText = this.add.text(0, 0, '', {
-      fontSize: '26px', color: '#ffffff', fontFamily: 'sans-serif',
-      align: 'center', wordWrap: { width: 320 }
+      fontSize: '20px', color: COLORS.text, fontFamily: 'sans-serif'
     }).setOrigin(0.5);
 
-    this.table = this.add.rectangle(0, 0, 260, 140, 0x8b5a2b)
-      .setStrokeStyle(4, 0x5a3617)
-      .setInteractive({ useHandCursor: true });
-    this.table.on('pointerdown', () => this.serveOrder());
-    this.tableLabel = this.add.text(0, 0, 'Тапни, чтобы подать', {
-      fontSize: '20px', color: '#f3e3c8', fontFamily: 'sans-serif'
+    this.bubble = this.add.graphics().setVisible(false);
+    this.orderText = this.add.text(0, 0, '', {
+      fontSize: '26px', color: '#3a2e25', fontFamily: 'sans-serif',
+      align: 'center', fontStyle: 'bold'
+    }).setOrigin(0.5).setVisible(false);
+
+    this.tableGfx = this.add.graphics();
+    this.tableZone = this.add.zone(0, 0, 1, 1).setOrigin(0.5);
+    this.tableZone.setInteractive({ useHandCursor: true });
+    this.tableZone.on('pointerdown', () => this.serveOrder());
+    this.tableLabel = this.add.text(0, 0, '☕ Подать', {
+      fontSize: '22px', color: COLORS.text, fontFamily: 'sans-serif'
     }).setOrigin(0.5);
 
     this.hint = this.add.text(0, 0, '', {
-      fontSize: '24px', color: '#cccccc', fontFamily: 'sans-serif',
-      align: 'center', wordWrap: { width: 340 }
+      fontSize: '22px', color: COLORS.hint, fontFamily: 'sans-serif',
+      align: 'center', wordWrap: { width: 320 }
     }).setOrigin(0.5);
 
     this.scale.on('resize', () => this.layout());
@@ -65,21 +81,52 @@ class CafeScene extends Phaser.Scene {
     this.scheduleOrder();
   }
 
+  // Все позиции считаются от размеров экрана, элементы не должны перекрываться
   layout() {
-    const { width, height } = this.scale;
-    // Верхний и нижний отступы учитывают панели Safari
-    const top = 90;
-    const bottom = height - 140;
-    const cx = width / 2;
-    const midY = (top + bottom) / 2;
+    const { width: w, height: h } = this.scale;
+    const cx = w / 2;
+    const unit = Math.min(w, h * 0.6) / 10; // базовый размер для элементов
 
-    this.coinText.setPosition(cx, top - 40);
-    this.clientBox.setPosition(cx, top + 120);
-    this.clientLabel.setPosition(cx, top + 120 - 100);
-    this.orderText.setPosition(cx, top + 120);
-    this.table.setPosition(cx, midY + 170);
-    this.tableLabel.setPosition(cx, midY + 170);
-    this.hint.setPosition(cx, bottom - 20);
+    this.bg.clear().fillStyle(COLORS.wall).fillRect(0, 0, w, h * 0.5);
+    this.bg.fillStyle(COLORS.floor).fillRect(0, h * 0.5, w, h * 0.5);
+
+    this.coinText.setPosition(cx, h * 0.09);
+
+    const clientY = h * 0.27;
+    const clientSize = unit * 2.4;
+    this.drawClient(cx, clientY, clientSize);
+    this.clientLabel.setPosition(cx, clientY + clientSize / 2 + 18);
+    this.bubbleX = cx;
+    this.bubbleY = clientY - clientSize / 2 - unit * 0.9;
+    this.orderText.setPosition(this.bubbleX, this.bubbleY);
+
+    const tableY = h * 0.6;
+    const tableW = unit * 4.2;
+    const tableH = unit * 1.6;
+    this.tableGfx.clear()
+      .fillStyle(COLORS.tableDark).fillRoundedRect(cx - tableW / 2, tableY - tableH / 2 + 6, tableW, tableH, 18)
+      .fillStyle(COLORS.table).fillRoundedRect(cx - tableW / 2, tableY - tableH / 2, tableW, tableH, 18);
+    this.tableZone.setPosition(cx, tableY).setSize(tableW, tableH);
+    this.tableLabel.setPosition(cx, tableY);
+
+    this.hint.setPosition(cx, h * 0.86);
+  }
+
+  drawClient(cx, cy, size) {
+    this.client.clear()
+      .fillStyle(COLORS.clientDark).fillRoundedRect(cx - size / 2, cy - size / 2 + 6, size, size, 24)
+      .fillStyle(this.hasOrder ? COLORS.client : 0x5f6b78).fillRoundedRect(cx - size / 2, cy - size / 2, size, size, 24);
+  }
+
+  drawBubble() {
+    this.bubble.clear();
+    if (!this.hasOrder) return;
+    const bw = 200;
+    const bh = 90;
+    this.bubble.setVisible(true)
+      .fillStyle(COLORS.bubble)
+      .fillRoundedRect(this.bubbleX - bw / 2, this.bubbleY - bh / 2, bw, bh, 20);
+    this.orderText.setVisible(true);
   }
 
   updateCoinText() {
@@ -88,15 +135,16 @@ class CafeScene extends Phaser.Scene {
 
   scheduleOrder() {
     const delay = Phaser.Math.Between(ORDER_MIN_DELAY, ORDER_MAX_DELAY);
-    this.hint.setText('Ждём клиента...');
+    this.hint.setText('Ждём клиента…');
     this.time.delayedCall(delay, () => this.showOrder());
   }
 
   showOrder() {
     this.hasOrder = true;
     this.orderText.setText('Кофе,\nпожалуйста!');
-    this.hint.setText('Тапни по столику, чтобы подать заказ');
-    this.clientBox.setFillStyle(0x4a7fb5);
+    this.hint.setText('Тапни по столику, чтобы подать');
+    this.layout();
+    this.drawBubble();
   }
 
   serveOrder() {
@@ -108,13 +156,15 @@ class CafeScene extends Phaser.Scene {
     this.updateCoinText();
     this.showReward();
 
-    this.orderText.setText('');
+    this.bubble.setVisible(false);
+    this.orderText.setVisible(false);
+    this.layout();
     this.scheduleOrder();
   }
 
   showReward() {
-    const popup = this.add.text(this.table.x, this.table.y - 100, `+${ORDER_REWARD}`, {
-      fontSize: '40px', color: '#7dff8a', fontFamily: 'sans-serif', fontStyle: 'bold'
+    const popup = this.add.text(this.tableZone.x, this.tableZone.y - 90, `+${ORDER_REWARD}`, {
+      fontSize: '42px', color: COLORS.reward, fontFamily: 'sans-serif', fontStyle: 'bold'
     }).setOrigin(0.5);
 
     this.tweens.add({
@@ -130,7 +180,7 @@ class CafeScene extends Phaser.Scene {
 const config = {
   type: Phaser.AUTO,
   parent: document.body,
-  backgroundColor: '#2b241e',
+  backgroundColor: COLORS.wall,
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH
