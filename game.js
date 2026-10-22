@@ -60,19 +60,19 @@ class CafeScene extends Phaser.Scene {
     this.applyZoom();
     this.scale.on('resize', () => this.applyZoom());
 
-    this.coinText = this.add.text(cx, 70, '', {
+    this.coinText = this.add.text(cx, 40, '', {
       fontSize: '32px', color: COLORS.coin, fontFamily: 'sans-serif', fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Клиент
     this.clientGfx = this.add.graphics();
-    this.add.text(cx, 290, 'Клиент', {
+    this.add.text(cx, 385, 'Клиент', {
       fontSize: '18px', color: COLORS.text, fontFamily: 'sans-serif'
     }).setOrigin(0.5);
 
     // Пузырь заказа
     this.bubbleGfx = this.add.graphics().setVisible(false);
-    this.orderText = this.add.text(cx, 200, '', {
+    this.orderText = this.add.text(cx, 140, '', {
       fontSize: '22px', color: '#3a2e25', fontFamily: 'sans-serif',
       align: 'center', fontStyle: 'bold'
     }).setOrigin(0.5).setVisible(false);
@@ -115,7 +115,7 @@ class CafeScene extends Phaser.Scene {
   drawClient() {
     const cx = DESIGN_W / 2;
     const size = 150;
-    const y = 360 - size / 2;
+    const y = 290 - size / 2;
     this.clientGfx.clear()
       .fillStyle(COLORS.clientDark).fillRoundedRect(cx - size / 2, y + 6, size, size, 22)
       .fillStyle(this.hasOrder ? COLORS.client : COLORS.clientOff)
@@ -132,7 +132,7 @@ class CafeScene extends Phaser.Scene {
     }
     this.bubbleGfx.setVisible(true)
       .fillStyle(COLORS.bubble)
-      .fillRoundedRect(cx - 100, 200 - 40, 200, 80, 18);
+      .fillRoundedRect(cx - 100, 140 - 40, 200, 80, 18);
     this.orderText.setText('Кофе,\nпожалуйста!').setVisible(true);
   }
 
