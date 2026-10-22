@@ -53,9 +53,12 @@ class CafeScene extends Phaser.Scene {
 
     const cx = DESIGN_W / 2;
 
-    // Фон: стена сверху, пол снизу
-    this.add.rectangle(cx, 300, DESIGN_W, 600, COLORS.wall);
-    this.add.rectangle(cx, 600, DESIGN_W, 488, COLORS.floor);
+    // Фон: стена сверху, пол снизу. Шире и выше сетки, чтобы закрыть любой экран
+    this.add.rectangle(cx, 300, 2000, 1200, COLORS.wall);
+    this.add.rectangle(cx, 1300, 2000, 1400, COLORS.floor);
+
+    this.applyZoom();
+    this.scale.on('resize', () => this.applyZoom());
 
     this.coinText = this.add.text(cx, 70, '', {
       fontSize: '32px', color: COLORS.coin, fontFamily: 'sans-serif', fontStyle: 'bold'
@@ -92,6 +95,14 @@ class CafeScene extends Phaser.Scene {
     this.drawClient();
     this.updateCoinText();
     this.scheduleOrder();
+  }
+
+  // Масштаб камеры, а не растяжка canvas: картинка рисуется в разрешении устройства и остаётся чёткой
+  applyZoom() {
+    const { width, height } = this.scale;
+    const cam = this.cameras.main;
+    cam.setZoom(Math.min(width / DESIGN_W, height / DESIGN_H));
+    cam.centerOn(DESIGN_W / 2, DESIGN_H / 2);
   }
 
   drawStatic() {
@@ -174,14 +185,12 @@ class CafeScene extends Phaser.Scene {
 const config = {
   type: Phaser.AUTO,
   parent: document.body,
-  width: DESIGN_W,
-  height: DESIGN_H,
   backgroundColor: COLORS.wall,
-  // Чёткая картинка на экранах с высоким DPR (айфон), масштаб без размытия
+  // Чёткая картинка на экранах с высоким DPR (айфон)
   resolution: window.devicePixelRatio || 1,
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    // Canvas всегда на весь экран устройства, масштаб задаёт камера в applyZoom
+    mode: Phaser.Scale.RESIZE
   },
   scene: CafeScene
 };
